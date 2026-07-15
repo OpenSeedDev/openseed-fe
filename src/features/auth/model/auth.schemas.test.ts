@@ -1,0 +1,3 @@
+import { describe,expect,it } from 'vitest'
+import { signupSchema } from './auth.schemas'
+describe('signup schema',()=>{it('accepts valid input',()=>expect(signupSchema.safeParse({email:'user@example.com',password:'password123',passwordConfirm:'password123',profileId:'seed_user',name:'새싹'}).success).toBe(true));it('rejects password mismatch',()=>expect(signupSchema.safeParse({email:'user@example.com',password:'password123',passwordConfirm:'different1',profileId:'seed_user',name:'새싹'}).success).toBe(false));it('rejects invalid profile id',()=>expect(signupSchema.safeParse({email:'user@example.com',password:'password123',passwordConfirm:'password123',profileId:'한글 아이디',name:'새싹'}).success).toBe(false))})

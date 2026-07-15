@@ -1,0 +1,4 @@
+import type { ReactNode } from 'react'
+import { Link } from 'react-router-dom'
+export function AuthShell({title,description,children,footer}:{title:string;description:string;children:ReactNode;footer?:ReactNode}){return <div className="auth"><section className="auth-card"><Link className="brand" to="/"><span className="brand-mark">OS</span><span><b>OpenSeed</b><small>Ideas grow together</small></span></Link><h1>{title}</h1><p>{description}</p>{children}{footer&&<div className="auth-footer">{footer}</div>}</section></div>}
+export function Field({label,error,children,hint}:{label:string;error?:string;children:ReactNode;hint?:string}){return <label className="form-field"><span>{label}</span>{children}{hint&&!error&&<small>{hint}</small>}{error&&<small className="field-error" role="alert">{error}</small>}</label>}

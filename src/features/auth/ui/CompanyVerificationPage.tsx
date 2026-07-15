@@ -1,0 +1,11 @@
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useForm } from 'react-hook-form'
+import { Building2, CheckCircle2 } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import { queryKeys } from '../../../shared/api/queryKeys'
+import { errorMessage } from '../../../shared/api/errors'
+import { authApi } from '../api/auth.api'
+import { companyEmailSchema } from '../model/auth.schemas'
+import { AuthShell, Field } from './AuthShell'
+export function CompanyVerificationPage(){const [params]=useSearchParams();const client=useQueryClient();const requestMutation=useMutation({mutationFn:authApi.verifyCompany});const complete=useMutation({mutationFn:()=>authApi.completeCompany(params.get('token')??''),onSuccess:u=>client.setQueryData(queryKeys.me,u)});const {register,handleSubmit,formState:{errors}}=useForm<{email:string}>({resolver:zodResolver(companyEmailSchema)});return <AuthShell title="기업 인증" description="회사 대표 이메일 인증으로 기업 기능을 활성화합니다."><div className="verification-box"><Building2/>{complete.isSuccess?<><CheckCircle2 className="success-icon"/><h2>기업 인증 완료</h2></>:<>{params.get('token')?<button className="btn primary" onClick={()=>complete.mutate()}>기업 인증 완료하기</button>:<form onSubmit={handleSubmit(v=>requestMutation.mutate(v.email))}><Field label="회사 대표 이메일" error={errors.email?.message}><input type="email" placeholder="name@company.com" {...register('email')}/></Field><button className="btn primary wide">인증 링크 받기</button></form>}{requestMutation.isSuccess&&<p className="success-text">인증 링크를 보냈습니다. Mock token: valid-company-token</p>}{(requestMutation.isError||complete.isError)&&<p className="form-error">{errorMessage(requestMutation.error??complete.error)}</p>}</>}</div></AuthShell>}
