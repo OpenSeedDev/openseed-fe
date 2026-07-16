@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Building2, Check, ChevronDown, ChevronRight, Clock3, Coins, Eye, Heart, Lightbulb, LockKeyhole, Menu, MessageCircle, Search, Send, ShieldCheck, Sparkles, TrendingUp, UserRound, Wallet, X } from 'lucide-react'
+import { Building2, Check, ChevronDown, ChevronRight, Clock3, Coins, Crown, Eye, Heart, Lightbulb, LockKeyhole, Menu, MessageCircle, Search, Send, ShieldCheck, Sparkles, TrendingUp, UserRound, Wallet, X } from 'lucide-react'
 import { Link, NavLink, Navigate, Route, Routes, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { api } from './api'
 import type { Holding, Idea, Ledger, Me, Thread, Visibility } from './types'
@@ -9,6 +9,7 @@ import { SignupPage } from './features/auth/ui/SignupPage'
 import { VerifyEmailPage } from './features/auth/ui/VerifyEmailPage'
 import { CompanyVerificationPage } from './features/auth/ui/CompanyVerificationPage'
 import { RequireAuth, RequireVerifiedEmail } from './features/auth/ui/RouteGuards'
+import { useLogout, useSession } from './features/auth/model/auth.queries'
 import { MyPage as FullMyPage } from './pages/MyPage'
 import { MessagesPage } from './pages/MessagesPage'
 import { IdeaDetailPage } from './pages/IdeaDetailPage'
@@ -19,46 +20,76 @@ const q={me:['me'] as const,ideas:['ideas'] as const,detail:(id:string)=>['idea'
 
 function useMe(){return useQuery({queryKey:q.me,queryFn:()=>api<Me>('/me')})}
 function Badge({children,tone='blue'}:{children:React.ReactNode;tone?:string}){return <span className={`badge ${tone}`}>{children}</span>}
+function UserAvatar({profileId,avatarUrl,color}:{profileId:string;avatarUrl?:string|null;color?:string}){return <span className="avatar" style={{backgroundColor:color??'#246bfe'}}>{avatarUrl?<img src={avatarUrl} alt=""/>:(profileId[0]??'O').toUpperCase()}</span>}
 function Metric({icon,label,value}:{icon:React.ReactNode;label:string;value:string|number}){return <span className="metric">{icon}<span>{label}</span><b>{value}</b></span>}
 function Loading(){return <div className="state"><span className="spinner"/>데이터를 불러오고 있어요.</div>}
 function Notice(){return <div className="notice"><ShieldCheck size={17}/><span><b>가상 포인트 안내</b> Seed Unit은 현금화할 수 없으며 금전적 권리나 수익 배분을 의미하지 않습니다.</span></div>}
 
 function Shell(){
-  const {data:me}=useMe(); const [open,setOpen]=useState(false)
-  return <div><header className="header"><div className="header-in"><Link className="brand" to="/"><span className="brand-mark">OS</span><span><b>OpenSeed</b><small>Ideas grow together</small></span></Link><nav className={open?'nav open':'nav'}><NavLink to="/">아이디어 랭킹</NavLink><NavLink to="/ideas/new">아이디어 등록</NavLink><NavLink to="/messages">기업 문의</NavLink><NavLink to="/mypage">마이페이지</NavLink></nav><div className="head-actions"><span className="wallet-mini"><Coins size={16}/>{won.format(me?.points??0)} P</span><Link to="/mypage" className="avatar">민</Link><button className="menu" onClick={()=>setOpen(!open)} aria-label="메뉴">{open?<X/>:<Menu/>}</button></div></div></header><main><Routes><Route path="/" element={<Home/>}/><Route path="/ideas/new" element={<RequireVerifiedEmail><CreateIdeaPage/></RequireVerifiedEmail>}/><Route path="/ideas/:id" element={<IdeaDetailPage/>}/><Route path="/mypage" element={<RequireAuth><FullMyPage/></RequireAuth>}/><Route path="/messages" element={<RequireAuth><MessagesPage/></RequireAuth>}/><Route path="/login" element={<LoginPage/>}/><Route path="/signup" element={<SignupPage/>}/><Route path="/verify-email" element={<VerifyEmailPage/>}/><Route path="/company/verify" element={<RequireVerifiedEmail><CompanyVerificationPage/></RequireVerifiedEmail>}/><Route path="*" element={<Navigate to="/"/>}/></Routes></main></div>
-}
-
-function Home(){
-  const [params,setParams]=useSearchParams(); const query=params.get('q')??''; const sort=params.get('sort')??'rank'
-  const {data:ideas,isLoading}=useQuery({queryKey:[...q.ideas,{query,sort}],queryFn:()=>api<Idea[]>(`/ideas?q=${encodeURIComponent(query)}&sort=${sort}`)})
-  const total=ideas?.reduce((s,i)=>s+i.seedInvested,0)??0
-  return <div className="container">
-    <section className="hero">
-      <div className="hero-copy">
-        <Badge tone="green">OPEN INNOVATION</Badge>
-        <h1>좋은 아이디어는 <em>함께 검증할수록</em>,<br/>더 선명해집니다.</h1>
-        <p>AI로 아이디어를 구체화하고, 커뮤니티와 기업의 반응으로 가능성을 확인하세요.</p>
-        <div className="hero-buttons"><Link className="btn primary" to="/ideas/new"><Sparkles size={18}/>AI로 아이디어 만들기</Link><a className="btn ghost" href="#ranking">랭킹 둘러보기</a></div>
+  const session=useSession()
+  const logout=useLogout()
+  const me=session.data
+  const navigate=useNavigate()
+  const [open,setOpen]=useState(false)
+  const [profileOpen,setProfileOpen]=useState(false)
+  const [headerQuery,setHeaderQuery]=useState('')
+  const submitSearch=(event:React.FormEvent)=>{event.preventDefault();navigate(`/?q=${encodeURIComponent(headerQuery)}`);setOpen(false)}
+  return <div>
+    <header className="header">
+      <div className="header-in">
+        <Link className="brand header-brand" to="/"><span className="brand-mark">O</span><b>OpenSeed</b></Link>
+        <nav className={open?'nav open':'nav'} aria-label="주요 메뉴">
+          <NavLink to="/" onClick={()=>setOpen(false)}>아이디어 발견</NavLink>
+          <NavLink className="mobile-nav-link" to="/ideas/new" onClick={()=>setOpen(false)}>아이디어 등록</NavLink>
+          <NavLink className="mobile-nav-link" to="/messages" onClick={()=>setOpen(false)}>기업 문의</NavLink>
+          <NavLink className="mobile-nav-link" to="/mypage" onClick={()=>setOpen(false)}>마이페이지</NavLink>
+        </nav>
+        <form className="header-search" onSubmit={submitSearch}><Search aria-hidden="true"/><input value={headerQuery} onChange={event=>setHeaderQuery(event.target.value)} placeholder="아이디어 검색" aria-label="아이디어 검색"/></form>
+        <div className="head-actions">
+          <Link to="/ideas/new" className="header-create"><Sparkles/>아이디어 등록</Link>
+          {session.isLoading?<span className="session-loading" aria-label="로그인 상태 확인 중"/>:me?<><span className="wallet-mini"><Coins size={16}/>{won.format(me.points)} P</span><div className="profile-menu"><button className="profile-trigger" onClick={()=>setProfileOpen(value=>!value)} aria-expanded={profileOpen} aria-label="사용자 메뉴"><UserAvatar profileId={me.profileId} avatarUrl={me.avatarUrl} color={me.avatarColor}/><ChevronDown/></button>{profileOpen&&<div className="profile-popover"><div className="profile-summary"><b>{me.name}</b><span>{won.format(me.points)} P</span></div><Link to="/mypage" onClick={()=>setProfileOpen(false)}>마이페이지</Link><Link to="/messages" onClick={()=>setProfileOpen(false)}>기업 문의</Link><Link to="/company/verify" onClick={()=>setProfileOpen(false)}>기업 인증</Link><button className="logout-button" disabled={logout.isPending} onClick={()=>logout.mutate(undefined,{onSuccess:()=>{setProfileOpen(false);navigate('/')}})}>{logout.isPending?'로그아웃 중...':'로그아웃'}</button></div>}</div></>:<div className="header-auth"><Link to="/login">로그인</Link><Link to="/signup">회원가입</Link></div>}
+          <button className="menu" onClick={()=>setOpen(!open)} aria-label="메뉴">{open?<X/>:<Menu/>}</button>
+        </div>
       </div>
-      <aside className="hero-stats" aria-label="OpenSeed 현황">
-        <div className="hero-stats-head"><span>OPENSEED NOW</span><b>함께 성장하는 아이디어</b></div>
-        <div className="hero-stat"><span>검증 중인 아이디어</span><b>{ideas?.length??4}</b></div>
-        <div className="hero-stat"><span>활성 Seed Point</span><b>{won.format(total)} <small>P</small></b></div>
-        <div className="hero-stat"><span>기업 관심 신호</span><b>{ideas?.reduce((s,i)=>s+i.companies.length,0)??6}</b></div>
-      </aside>
-    </section>
-    <section className="toolbar" id="ranking">
-      <div><span className="eyebrow">LIVE DISCOVERY</span><h2>아이디어 랭킹</h2></div>
-      <div className="filters">
-        <label className="search"><Search size={19}/><input value={query} onChange={e=>setParams({q:e.target.value,sort})} placeholder="제목과 키워드 검색" aria-label="제목과 키워드 검색"/></label>
-        <label className="sort-select"><span className="sr-only">아이디어 정렬</span><select value={sort} onChange={e=>setParams({q:query,sort:e.target.value})} aria-label="아이디어 정렬"><option value="rank">랭킹순</option><option value="trending">급상승순</option><option value="latest">최신순</option></select><ChevronDown aria-hidden="true"/></label>
-      </div>
-    </section>
-    {isLoading?<Loading/>:<div className="home-grid"><section className="ranking-list">{ideas?.map(idea=><RankingRow key={idea.id} idea={idea}/>)}</section><aside className="side-stack"><div className="panel spotlight"><span className="eyebrow">TODAY'S RISING</span><TrendingUp/><h3>{ideas?.slice().sort((a,b)=>b.trend-a.trend)[0]?.title}</h3><p>최근 24시간 반응이 가장 빠르게 성장하고 있어요.</p></div><div className="panel"><h3>오픈소스 기여자 Top 5</h3>{['준호','서연','민서','하린','도윤'].map((n,i)=><div className="contributor" key={n}><b>{i+1}</b><span className="avatar small">{n[0]}</span><span>{n}<small>채택 기여 {12-i*2}회</small></span></div>)}</div></aside></div>}
+    </header>
+    <main><Routes><Route path="/" element={<Home/>}/><Route path="/ideas/new" element={<RequireVerifiedEmail><CreateIdeaPage/></RequireVerifiedEmail>}/><Route path="/ideas/:id" element={<IdeaDetailPage/>}/><Route path="/mypage" element={<RequireAuth><FullMyPage/></RequireAuth>}/><Route path="/messages" element={<RequireAuth><MessagesPage/></RequireAuth>}/><Route path="/login" element={<LoginPage/>}/><Route path="/signup" element={<SignupPage/>}/><Route path="/verify-email" element={<VerifyEmailPage/>}/><Route path="/company/verify" element={<RequireVerifiedEmail><CompanyVerificationPage/></RequireVerifiedEmail>}/><Route path="*" element={<Navigate to="/"/>}/></Routes></main>
   </div>
 }
 
-function RankingRow({idea}:{idea:Idea}){return <Link to={`/ideas/${idea.id}`} className="rank-row"><div className={`rank-number ${idea.rank<4?'top':''}`}>{idea.rank}</div><div className="rank-main"><div className="row-badges"><Badge tone="gray">{idea.category}</Badge><Badge tone={idea.visibility==='공개형'?'green':'orange'}>{idea.visibility}</Badge><Badge>{idea.maturity}</Badge></div><h3>{idea.title}</h3><p>{idea.summary}</p><div className="metrics"><Metric icon={<Coins/>} label="현재가" value={`${idea.price} P`}/><Metric icon={<UserRound/>} label="참여" value={idea.investors}/><Metric icon={<Building2/>} label="기업" value={idea.companies.length}/><Metric icon={<Heart/>} label="좋아요" value={won.format(idea.likes)}/><Metric icon={<Eye/>} label="조회" value={won.format(idea.views)}/></div></div><div className="trend"><TrendingUp/><b>+{idea.trend}%</b><span>24시간</span><ChevronRight/></div></Link>}
+function Home(){
+  const [params,setParams]=useSearchParams(); const query=params.get('q')??''; const sort=params.get('sort')??'rank'; const category=params.get('category')??'전체'
+  const {data:ideas,isLoading}=useQuery({queryKey:[...q.ideas,{query,sort}],queryFn:()=>api<Idea[]>(`/ideas?q=${encodeURIComponent(query)}&sort=${sort}`)})
+  const total=ideas?.reduce((s,i)=>s+i.seedInvested,0)??0
+  const categories=['전체',...Array.from(new Set(ideas?.map(idea=>idea.category)??[]))]
+  const visibleIdeas=category==='전체'?ideas:ideas?.filter(idea=>idea.category===category)
+  const updateParams=(next:{q?:string;sort?:string;category?:string})=>setParams({q:next.q??query,sort:next.sort??sort,category:next.category??category})
+  return <div className="container home-container">
+    <section className="hero">
+      <div className="hero-copy">
+        <Badge tone="green">OPEN INNOVATION</Badge>
+        <h1>좋은 아이디어는 <em>함께 검증할수록</em><br/>더 선명해집니다</h1>
+        <p>AI로 아이디어를 구체화하고 커뮤니티와 기업의 반응으로 가능성을 확인하세요.</p>
+        <div className="hero-buttons"><Link className="btn primary" to="/ideas/new"><Sparkles size={18}/>AI로 아이디어 만들기</Link><a className="btn ghost" href="#ranking">랭킹 둘러보기</a></div>
+      </div>
+      <div className="hero-stats" aria-label="OpenSeed 현황">
+        <div className="hero-stat"><span>검증 중인 아이디어</span><b>{ideas?.length??4}</b></div>
+        <div className="hero-stat"><span>활성 Seed Point</span><b>{won.format(total)} <small>P</small></b></div>
+        <div className="hero-stat"><span>기업 관심 신호</span><b>{ideas?.reduce((s,i)=>s+i.companies.length,0)??6}</b></div>
+      </div>
+    </section>
+    <section className="toolbar" id="ranking">
+      <div><span className="eyebrow">LIVE DISCOVERY</span><h2>지금 주목받는 아이디어</h2><p>참여와 기업 반응을 바탕으로 발견된 아이디어입니다.</p></div>
+      <div className="filters">
+        <label className="search"><Search size={19}/><input value={query} onChange={e=>updateParams({q:e.target.value})} placeholder="아이디어 검색" aria-label="아이디어 검색"/></label>
+        <label className="sort-select"><span className="sr-only">아이디어 정렬</span><select value={sort} onChange={e=>updateParams({sort:e.target.value})} aria-label="아이디어 정렬"><option value="rank">랭킹순</option><option value="trending">급상승순</option><option value="latest">최신순</option></select><ChevronDown aria-hidden="true"/></label>
+      </div>
+    </section>
+    <div className="category-filters" aria-label="아이디어 카테고리">{categories.map(item=><button key={item} className={category===item?'active':''} onClick={()=>updateParams({category:item})}>{item}{item==='전체'&&<small>{ideas?.length??0}</small>}</button>)}</div>
+    {isLoading?<Loading/>:visibleIdeas?.length?<div className="home-grid"><div className="ranking-heading"><h3>전체 랭킹</h3><span>{visibleIdeas.length}개의 아이디어</span></div><section className="ranking-list">{visibleIdeas.map(idea=><RankingRow key={idea.id} idea={idea} featured={idea.rank<=3}/>)}</section></div>:<div className="state">조건에 맞는 아이디어가 없습니다.</div>}
+  </div>
+}
+
+function RankingRow({idea,featured=false}:{idea:Idea;featured?:boolean}){return <Link to={`/ideas/${idea.id}`} className={`rank-row${featured?' featured':''}`} data-rank={idea.rank}><div className="rank-number">{featured&&<Crown aria-hidden="true"/>}<span>{idea.rank}</span></div><div className="rank-main"><div className="row-badges"><Badge tone="gray">{idea.category}</Badge><Badge>{idea.maturity}</Badge></div><h3>{idea.title}</h3><p>{idea.summary}</p><div className="metrics"><Metric icon={<UserRound/>} label="참여" value={idea.investors}/><Metric icon={<Building2/>} label="기업 관심" value={idea.companies.length}/><Metric icon={<Coins/>} label="Seed" value={`${idea.price} P`}/></div></div><div className="trend"><b>+{idea.trend}%</b><span>24시간</span><ChevronRight/></div></Link>}
 
 export function LegacyIdeaDetail(){
   const {id=''}=useParams(); const client=useQueryClient(); const {data:idea,isLoading}=useQuery({queryKey:q.detail(id),queryFn:()=>api<Idea>(`/ideas/${id}`)}); const {data:me}=useMe(); const [tab,setTab]=useState('plan'); const [buy,setBuy]=useState(false); const [units,setUnits]=useState(1); const [feedback,setFeedback]=useState('');
