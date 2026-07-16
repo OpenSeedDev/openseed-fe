@@ -8,7 +8,7 @@ export interface Idea {
   price: number; seedInvested: number; investors: number; companies: string[]; likes: number; views: number; trend: number;
   feedback: Feedback[]; timeline: Array<{ date: string; title: string; detail?: string }>; validationQuestions?:string[]; contentAccess?:'FULL'|'SUMMARY'|'LOCKED'; capabilities?:{edit:boolean;feedback:boolean;purchase:boolean;companyInterest:boolean;requestAccess:boolean;reviewAccessRequests:boolean};
 }
-export interface Me { id: string; name: string; profileId: string; role: 'USER' | 'COMPANY'; verified: boolean; points: number; pending: number; likedIds: string[] }
+export interface Me { id: string; name: string; profileId: string; role: 'USER' | 'COMPANY'; verified: boolean; points: number; pending: number; likedIds: string[]; avatarUrl?:string|null; avatarColor?:string }
 export interface Holding { id: string; ideaId: string; units: number; entryPrice: number; purchasedAt: string; unlocked: boolean }
 export interface Ledger { id: string; label: string; amount: number; at: string }
 export interface Thread { id: string; ideaId: string; company: string; title: string; unread: number; messages: Array<{ id: string; mine: boolean; text: string; at: string }> }

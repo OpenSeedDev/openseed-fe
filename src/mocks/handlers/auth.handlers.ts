@@ -1,5 +1,6 @@
 import { delay, http, HttpResponse } from 'msw'
 import { authService } from '../services/auth.service'
+import { db } from '../data'
 const error=(status:number,code:string,message:string,fieldErrors?:Record<string,string>)=>HttpResponse.json({code,message,fieldErrors,requestId:`mock-${Date.now()}`},{status})
 export const authHandlers=[
   http.get('/api/auth/me',()=>HttpResponse.json(authService.me())),
@@ -7,6 +8,7 @@ export const authHandlers=[
   http.get('/api/auth/check-profile-id',({request})=>{const id=new URL(request.url).searchParams.get('profileId')??'';const available=authService.profileAvailable(id);return HttpResponse.json({available,message:available?undefined:'이미 사용 중인 프로필 ID입니다.'})}),
   http.post('/api/auth/signup',async({request})=>{await delay(250);const body=await request.json() as {email:string;password:string;profileId:string;name:string};if(!authService.emailAvailable(body.email))return error(409,'EMAIL_ALREADY_EXISTS','이미 가입된 이메일입니다.',{email:'이미 가입된 이메일입니다.'});if(!authService.profileAvailable(body.profileId))return error(409,'PROFILE_ID_ALREADY_EXISTS','이미 사용 중인 프로필 ID입니다.',{profileId:'이미 사용 중인 프로필 ID입니다.'});return HttpResponse.json(authService.signup(body),{status:201})}),
   http.post('/api/auth/login',async({request})=>{await delay(200);const body=await request.json() as {email:string;password:string};const user=authService.login(body.email,body.password);return user?HttpResponse.json(user):error(401,'INVALID_CREDENTIALS','이메일 또는 비밀번호가 올바르지 않습니다.')}),
+  http.patch('/api/auth/profile',async({request})=>{await delay(180);const body=await request.json() as {name:string;profileId:string;avatarUrl?:string|null;avatarColor?:string};if(body.name.trim().length<2)return error(422,'INVALID_NAME','이름은 2자 이상 입력해 주세요.',{name:'이름은 2자 이상 입력해 주세요.'});if(!/^[a-zA-Z0-9_]{3,20}$/.test(body.profileId))return error(422,'INVALID_PROFILE_ID','프로필 ID 형식을 확인해 주세요.',{profileId:'영문, 숫자, 밑줄 3~20자로 입력해 주세요.'});const user=authService.updateProfile({name:body.name.trim(),profileId:body.profileId,avatarUrl:body.avatarUrl,avatarColor:body.avatarColor});if(!user)return error(401,'UNAUTHENTICATED','로그인이 필요합니다.');db.me.name=user.name;db.me.profileId=user.profileId;db.me.avatarUrl=user.avatarUrl;db.me.avatarColor=user.avatarColor;return HttpResponse.json(user)}),
   http.post('/api/auth/logout',()=>{authService.logout();return new HttpResponse(null,{status:204})}),
   http.post('/api/auth/verify-email',async({request})=>{const {token}=await request.json() as {token:string};const user=authService.verifyEmail(token);return user?HttpResponse.json(user):error(422,'INVALID_VERIFICATION_TOKEN','인증 링크가 만료되었거나 올바르지 않습니다.')}),
   http.post('/api/auth/verification/resend',()=>authService.me()?HttpResponse.json({sent:true}):error(401,'UNAUTHENTICATED','로그인이 필요합니다.')),
